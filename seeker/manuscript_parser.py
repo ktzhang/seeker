@@ -1,0 +1,121 @@
+"""Phase 3 — Manuscript parser and XML serializer for Gemini prompt injection."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from xml.sax.saxutils import escape
+
+
+@dataclass
+class SlideBlock:
+    """A single slide's expected spoken content."""
+
+    index: int
+    content: str
+
+
+@dataclass
+class Manuscript:
+    """A structured sermon manuscript composed of ordered slide blocks."""
+
+    title: str = ""
+    blocks: list[SlideBlock] = field(default_factory=list)
+
+    def to_xml(self) -> str:
+        """Serialize the manuscript to the XML format expected by the system prompt."""
+        lines = ["<presentation_manuscript>"]
+        for block in self.blocks:
+            lines.append(f'  <slide_block index="{block.index}">')
+            lines.append("    <expected_content>")
+            lines.append(f"      {escape(block.content.strip())}")
+            lines.append("    </expected_content>")
+            lines.append("  </slide_block>")
+        lines.append("</presentation_manuscript>")
+        return "\n".join(lines)
+
+
+# ------------------------------------------------------------------
+# Parsers for various input formats
+# ------------------------------------------------------------------
+
+
+def parse_plain_text(text: str, delimiter: str = "\n\n") -> Manuscript:
+    """Parse a plain-text manuscript split by *delimiter* into slide blocks."""
+    sections = [s.strip() for s in text.split(delimiter) if s.strip()]
+    blocks = [SlideBlock(index=i, content=s) for i, s in enumerate(sections)]
+    return Manuscript(blocks=blocks)
+
+
+def parse_markdown(text: str) -> Manuscript:
+    """Parse a Markdown manuscript, splitting on ``## `` headings or ``---`` rules."""
+    # Split on headings or horizontal rules
+    parts = re.split(r"(?:^|\n)(?:##\s+.*|---+)\s*\n", text)
+    sections = [p.strip() for p in parts if p.strip()]
+    blocks = [SlideBlock(index=i, content=s) for i, s in enumerate(sections)]
+    return Manuscript(blocks=blocks)
+
+
+def parse_docx(file_path: str | Path) -> Manuscript:
+    """Parse a ``.docx`` manuscript, splitting on empty paragraphs."""
+    from docx import Document
+
+    doc = Document(str(file_path))
+
+    sections: list[str] = []
+    current: list[str] = []
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            if current:
+                sections.append(" ".join(current))
+                current = []
+        else:
+            current.append(text)
+
+    if current:
+        sections.append(" ".join(current))
+
+    blocks = [SlideBlock(index=i, content=s) for i, s in enumerate(sections)]
+    return Manuscript(blocks=blocks)
+
+
+def parse_structured(data: dict) -> Manuscript:
+    """Parse a pre-structured dict (from JSON/YAML) into a Manuscript."""
+    title = data.get("title", "")
+    raw_blocks = data.get("blocks", [])
+    blocks = [
+        SlideBlock(index=b.get("index", i), content=b["content"])
+        for i, b in enumerate(raw_blocks)
+    ]
+    return Manuscript(title=title, blocks=blocks)
+
+
+def load_manuscript(path: str | Path) -> Manuscript:
+    """Auto-detect format and load a manuscript from *path*."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+
+    text = ""
+    if suffix == ".docx":
+        return parse_docx(path)
+    else:
+        text = path.read_text(encoding="utf-8")
+
+    if suffix in (".yaml", ".yml"):
+        import yaml
+
+        data = yaml.safe_load(text)
+        return parse_structured(data)
+    if suffix == ".json":
+        import json
+
+        data = json.loads(text)
+        return parse_structured(data)
+    if suffix == ".md":
+        return parse_markdown(text)
+
+    # Default: plain text
+    return parse_plain_text(text)

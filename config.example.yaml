@@ -1,0 +1,41 @@
+# Seeker — Configuration
+# Copy this file to config.yaml and adjust to your environment.
+
+audio:
+  device_name: "default"        # Substring match against available input devices
+  device_index: null             # Override: set an explicit device index
+  sample_rate: 16000
+  channels: 1
+  chunk_duration_ms: 32
+  queue_max_size: 100
+  input_gain_db: 0.0
+
+gemini:
+  api_key: "${GEMINI_API_KEY}"   # Set via environment variable
+  model: "models/gemini-2.5-flash-native-audio"
+  target_tokens: 100000
+  reconnect_max_backoff_s: 8.0
+
+propresenter:
+  host: "127.0.0.1"
+  port: 50001
+  protocol: "http"
+  timeout_s: 2.0
+  use_sequential_trigger: true
+  health_check_interval_s: 30
+  ws_password: ""
+  sermon_uuid: ""                # UUID of the sermon presentation for auto-activation
+
+operator:
+  http_port: 8080
+  http_host: "127.0.0.1"
+
+logging:
+  level: "INFO"
+  file: "seeker.log"
+  console: true
+  latency_tracking: true
+
+prompt:
+  template: "prompts/v1.0_baseline.txt"
+  manuscript: ""                 # Path to manuscript file; set at runtime via CLI
