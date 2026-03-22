@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 from seeker.config import load_config, SeekerConfig
 
@@ -25,10 +26,26 @@ def _setup_logging(config: SeekerConfig) -> None:
     )
 
 
+def _rotate_log(log_file: str) -> None:
+    """Move the current log file to ./logs/ with a timestamp, then clear it."""
+    from datetime import datetime
+    log_path = Path(log_file)
+    if not log_path.exists() or log_path.stat().st_size == 0:
+        return
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = logs_dir / f"seeker_{ts}.log"
+    log_path.rename(dest)
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start the Seeker daemon."""
     config = load_config(args.config)
+    _rotate_log(config.logging.file)
     _setup_logging(config)
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     if args.manuscript:
         config.prompt.manuscript = args.manuscript

@@ -226,19 +226,27 @@ class SeekerDaemon:
             tool_decl = get_tool_declaration("song")
             presentation_uuid = pres.uuid if pres else ""
 
-            # Extract arrangement from PDF if provided
+            # Load arrangement
             song_arrangement = ""
-            if self.config.prompt.arrangement_pdf:
-                raw_arrangement = _extract_arrangement(
-                    self.config.prompt.arrangement_pdf,
-                    manuscript.title,
-                )
-                if raw_arrangement:
-                    slide_labels = [s.group_name for s in slides]
-                    normalized = await _normalize_arrangement_with_llm(
-                        raw_arrangement, slide_labels, self.config.gemini.api_key,
-                    )
-                    song_arrangement = normalized or raw_arrangement
+            arr_path = self.config.prompt.arrangement_pdf
+            if arr_path:
+                if arr_path.endswith(".txt"):
+                    # Plain text arrangement file — use as-is
+                    song_arrangement = Path(arr_path).read_text(encoding="utf-8").strip()
+                    log.info("Loaded arrangement from text file:\n%s", song_arrangement)
+                else:
+                    # PDF arrangement — extract and normalize
+                    raw_arrangement = _extract_arrangement(arr_path, manuscript.title)
+                    if raw_arrangement:
+                        slide_labels = [s.group_name for s in slides]
+                        normalized = await _normalize_arrangement_with_llm(
+                            raw_arrangement, slide_labels, self.config.gemini.api_key,
+                        )
+                        if normalized:
+                            song_arrangement = normalized
+                        else:
+                            expanded_lines = [_expand_arrangement_abbrev(l) for l in raw_arrangement.split('\n') if l.strip()]
+                            song_arrangement = '\n'.join(f"{i+1}. {l}" for i, l in enumerate(expanded_lines) if l)
         else:
             # Sermon mode: load manuscript from file
             song_arrangement = ""

@@ -89,6 +89,7 @@ class GeminiSession:
                     "parts": [{"text": system_prompt}],
                 },
                 "tools": [{"functionDeclarations": tools}],
+                "inputAudioTranscription": {},
                 "realtimeInputConfig": {},
                 "contextWindowCompression": {
                     "slidingWindow": {
@@ -176,7 +177,7 @@ class GeminiSession:
                 if "inputTranscription" in content:
                     text = content["inputTranscription"].get("text", "")
                     if text.strip():
-                        log.debug("Speaker: %s", text.strip())
+                        log.info("Hearing: %s", text.strip())
                 # Model turn parts (text, thought, audio)
                 parts = content.get("modelTurn", {}).get("parts", [])
                 for part in parts:
