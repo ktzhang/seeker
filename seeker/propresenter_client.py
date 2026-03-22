@@ -23,6 +23,15 @@ class PresentationInfo:
     current_index: int
 
 
+@dataclass
+class SlideInfo:
+    """A single slide with its lyric text and group label."""
+
+    index: int          # flat 0-based index across all groups
+    text: str           # slide lyric text
+    group_name: str     # "Verse 1", "Chorus", "Bridge", etc.
+
+
 class ProPresenterClient:
     """Async HTTP client for ProPresenter 7's REST API."""
 
@@ -55,11 +64,15 @@ class ProPresenterClient:
         data = await self._get_json("/v1/presentation/active")
         if data is None:
             return None
+        # API nests under "presentation" key
+        pres = data.get("presentation", data)
+        groups = pres.get("groups", [])
+        total_slides = sum(len(g.get("slides", [])) for g in groups)
         return PresentationInfo(
-            uuid=data.get("id", {}).get("uuid", ""),
-            name=data.get("id", {}).get("name", ""),
-            slide_count=len(data.get("groups", [{}])[0].get("slides", [])),
-            current_index=data.get("presentation_index", 0),
+            uuid=pres.get("id", {}).get("uuid", ""),
+            name=pres.get("id", {}).get("name", ""),
+            slide_count=total_slides,
+            current_index=pres.get("presentation_index", 0),
         )
 
     async def get_current_slide_index(self) -> int | None:
@@ -68,6 +81,24 @@ class ProPresenterClient:
         if data is None:
             return None
         return data.get("current", {}).get("index")
+
+    async def get_presentation_slides(self) -> list[SlideInfo]:
+        """Fetch all slides from the active presentation with group labels."""
+        data = await self._get_json("/v1/presentation/active")
+        if data is None:
+            return []
+        # API nests under "presentation" key
+        pres = data.get("presentation", data)
+        slides: list[SlideInfo] = []
+        flat_index = 0
+        for group in pres.get("groups", []):
+            group_name = group.get("name", "")
+            for slide in group.get("slides", []):
+                text = slide.get("text", "")
+                if slide.get("enabled", True):
+                    slides.append(SlideInfo(index=flat_index, text=text, group_name=group_name))
+                flat_index += 1
+        return slides
 
     async def health_check(self) -> bool:
         """Return True if the ProPresenter API is reachable."""
@@ -119,7 +150,11 @@ class ProPresenterToolHandler:
             return {"error": f"Unknown function: {name}"}
 
         slide_index = args.get("next_slide_index", -1)
-        log.info("Triggering slide advance → index %d", slide_index)
+        section_label = args.get("section_label", "")
+        if section_label:
+            log.info("Triggering slide advance → index %d [%s]", slide_index, section_label)
+        else:
+            log.info("Triggering slide advance → index %d", slide_index)
 
         if self.client.config.use_sequential_trigger:
             success = await self.client.trigger_next()
@@ -129,7 +164,4 @@ class ProPresenterToolHandler:
                 return {"error": "No active presentation"}
             success = await self.client.trigger_index(pres.uuid, slide_index)
 
-        return {
-            "result": "success" if success else "error",
-            "slide_index": slide_index,
-        }
+        return {"ok": success}

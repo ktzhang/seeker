@@ -34,6 +34,12 @@ def cmd_start(args: argparse.Namespace) -> None:
         config.prompt.manuscript = args.manuscript
     if args.audio_file:
         config.audio.audio_file = args.audio_file
+    if args.mode:
+        config.prompt.mode = args.mode
+    if args.anticipation is not None:
+        config.prompt.anticipation_seconds = args.anticipation
+    if args.arrangement:
+        config.prompt.arrangement_pdf = args.arrangement
 
     from seeker.daemon import OperatorServer, SeekerDaemon
 
@@ -144,6 +150,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp_start.add_argument("--manuscript", "-m", help="Path to sermon manuscript file")
     sp_start.add_argument("--audio-file", "-f", help="Path to an audio file (e.g. mp3) to ingest instead of live audio")
     sp_start.add_argument("--auto-activate", action="store_true", help="Auto-activate when PP sermon detected")
+    sp_start.add_argument("--mode", choices=["sermon", "song"], default="sermon", help="Tracking mode")
+    sp_start.add_argument("--anticipation", type=float, default=None, help="Predictive lead time in seconds for song mode")
+    sp_start.add_argument("--arrangement", help="Path to arrangement sheet PDF for song structure context")
 
     # devices
     sub.add_parser("devices", help="List available audio input devices")
