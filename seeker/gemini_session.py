@@ -15,6 +15,7 @@ from websockets.asyncio.client import ClientConnection
 from seeker.config import GeminiConfig
 
 log = logging.getLogger(__name__)
+logging.getLogger("websockets").setLevel(logging.WARNING)
 
 
 class ToolHandler(Protocol):
@@ -74,16 +75,21 @@ class GeminiSession:
             "setup": {
                 "model": self.config.model,
                 "generationConfig": {
-                    "responseModalities": ["TEXT"],
+                    "responseModalities": ["AUDIO"],
                     "temperature": 0.0,
+                    "speechConfig": {
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {
+                                "voiceName": "Puck"
+                            }
+                        }
+                    }
                 },
                 "systemInstruction": {
                     "parts": [{"text": system_prompt}],
                 },
                 "tools": [{"functionDeclarations": tools}],
-                "realtimeInputConfig": {
-                    "mediaResolution": "MEDIA_RESOLUTION_LOW",
-                },
+                "realtimeInputConfig": {},
                 "contextWindowCompression": {
                     "slidingWindow": {
                         "targetTokens": self.config.target_tokens,
@@ -158,15 +164,20 @@ class GeminiSession:
                     self._resumption_handle = handle
                     log.debug("Session resumption handle updated.")
             elif "serverContent" in message:
-                # Text responses (should be rare given our prompt)
-                parts = (
-                    message.get("serverContent", {})
-                    .get("modelTurn", {})
-                    .get("parts", [])
-                )
+                # Text/Audio responses
+                content = message.get("serverContent", {})
+                parts = content.get("modelTurn", {}).get("parts", [])
                 for part in parts:
                     if "text" in part:
-                        log.info("Model text: %s", part["text"])
+                        log.info("Gemini: %s", part["text"])
+                    if "thought" in part:
+                        log.info("Gemini thought: %s", part["thought"])
+                    if "inlineData" in part:
+                        log.debug("Gemini sent audio data content.")
+            else:
+                # Log other message types briefly for visibility
+                keys = list(message.keys())
+                log.debug("Received message types: %s", keys)
 
     # ------------------------------------------------------------------
     # Tool call handling
@@ -179,7 +190,7 @@ class GeminiSession:
             name = fc["name"]
             args = fc.get("args", {})
 
-            log.info("Tool call received: %s(%s) [id=%s]", name, args, call_id)
+            log.info("Gemini tool call: %s(%s)", name, args)
 
             result = await self.tool_handler.handle(name, args)
 

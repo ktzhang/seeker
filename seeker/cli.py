@@ -32,6 +32,8 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     if args.manuscript:
         config.prompt.manuscript = args.manuscript
+    if args.audio_file:
+        config.audio.audio_file = args.audio_file
 
     from seeker.daemon import OperatorServer, SeekerDaemon
 
@@ -140,6 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
     # start
     sp_start = sub.add_parser("start", help="Start the daemon")
     sp_start.add_argument("--manuscript", "-m", help="Path to sermon manuscript file")
+    sp_start.add_argument("--audio-file", "-f", help="Path to an audio file (e.g. mp3) to ingest instead of live audio")
     sp_start.add_argument("--auto-activate", action="store_true", help="Auto-activate when PP sermon detected")
 
     # devices
@@ -166,18 +169,21 @@ def main(argv: list[str] | None = None) -> None:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    cmd = args.command
-    if cmd == "start":
-        cmd_start(args)
-    elif cmd == "devices":
-        cmd_devices(args)
-    elif cmd == "test-pp":
-        cmd_test_pp(args)
-    elif cmd == "test-audio":
-        cmd_test_audio(args)
-    elif cmd == "version":
-        from seeker import __version__
-        print(f"seeker {__version__}")
+    try:
+        cmd = args.command
+        if cmd == "start":
+            cmd_start(args)
+        elif cmd == "devices":
+            cmd_devices(args)
+        elif cmd == "test-pp":
+            cmd_test_pp(args)
+        elif cmd == "test-audio":
+            cmd_test_audio(args)
+        elif cmd == "version":
+            from seeker import __version__
+            print(f"seeker {__version__}")
+    finally:
+        logging.shutdown()
 
 
 if __name__ == "__main__":

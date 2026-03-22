@@ -95,10 +95,25 @@ class SeekerDaemon:
         log.info("Streaming — tracking %d slides.", self.total_slides)
 
         # Run concurrent tasks
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(create_audio_task(self.config.audio, self._audio_queue))
-            tg.create_task(self._gemini_session.stream_audio())
-            tg.create_task(self._gemini_session.receive_messages())
+        if self.config.audio.audio_file:
+            from seeker.file_audio import create_file_audio_task
+            audio_task_coro = create_file_audio_task(self.config.audio, self._audio_queue)
+        else:
+            audio_task_coro = create_audio_task(self.config.audio, self._audio_queue)
+
+        tasks = [
+            asyncio.create_task(audio_task_coro),
+            asyncio.create_task(self._gemini_session.stream_audio()),
+            asyncio.create_task(self._gemini_session.receive_messages()),
+        ]
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await self.deactivate()
 
     async def deactivate(self) -> None:
         """Gracefully stop streaming and return to DORMANT."""

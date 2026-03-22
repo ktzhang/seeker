@@ -71,7 +71,7 @@ class ProPresenterClient:
 
     async def health_check(self) -> bool:
         """Return True if the ProPresenter API is reachable."""
-        return await self._get_ok("/v1/version")
+        return await self._get_ok("/version")
 
     # ------------------------------------------------------------------
     # Internal HTTP helpers

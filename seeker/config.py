@@ -20,6 +20,7 @@ class AudioConfig:
     chunk_duration_ms: int = 32
     queue_max_size: int = 100
     input_gain_db: float = 0.0
+    audio_file: str | None = None
 
     @property
     def chunk_frames(self) -> int:
@@ -37,7 +38,7 @@ class GeminiConfig:
     """Gemini Multimodal Live API configuration."""
 
     api_key: str = ""
-    model: str = "models/gemini-2.5-flash-native-audio"
+    model: str = "models/gemini-2.5-flash-native-audio-latest"
     endpoint: str = (
         "wss://generativelanguage.googleapis.com/ws/"
         "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"

@@ -68,15 +68,8 @@ def parse_docx(file_path: str | Path) -> Manuscript:
 
     for para in doc.paragraphs:
         text = para.text.strip()
-        if not text:
-            if current:
-                sections.append(" ".join(current))
-                current = []
-        else:
-            current.append(text)
-
-    if current:
-        sections.append(" ".join(current))
+        if text:
+            sections.append(text)
 
     blocks = [SlideBlock(index=i, content=s) for i, s in enumerate(sections)]
     return Manuscript(blocks=blocks)
