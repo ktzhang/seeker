@@ -23,9 +23,19 @@ class TestProPresenterClient:
 
 class TestProPresenterToolHandler:
     @pytest.mark.asyncio
-    async def test_handles_known_function(self):
+    async def test_triggers_by_index_when_uuid_provided(self):
         mock_client = MagicMock()
-        mock_client.config = ProPresenterConfig(use_sequential_trigger=True)
+        mock_client.trigger_index = AsyncMock(return_value=True)
+
+        handler = ProPresenterToolHandler(mock_client, presentation_uuid="abc-123")
+        result = await handler.handle("trigger_presentation_slide", {"next_slide_index": 3})
+
+        assert result["ok"] is True
+        mock_client.trigger_index.assert_awaited_once_with("abc-123", 3)
+
+    @pytest.mark.asyncio
+    async def test_triggers_next_when_no_uuid(self):
+        mock_client = MagicMock()
         mock_client.trigger_next = AsyncMock(return_value=True)
 
         handler = ProPresenterToolHandler(mock_client)
@@ -94,7 +104,6 @@ class TestToolHandlerSectionLabel:
     @pytest.mark.asyncio
     async def test_logs_section_label(self):
         mock_client = MagicMock()
-        mock_client.config = ProPresenterConfig(use_sequential_trigger=True)
         mock_client.trigger_next = AsyncMock(return_value=True)
 
         handler = ProPresenterToolHandler(mock_client)
@@ -107,7 +116,6 @@ class TestToolHandlerSectionLabel:
     @pytest.mark.asyncio
     async def test_works_without_section_label(self):
         mock_client = MagicMock()
-        mock_client.config = ProPresenterConfig(use_sequential_trigger=True)
         mock_client.trigger_next = AsyncMock(return_value=True)
 
         handler = ProPresenterToolHandler(mock_client)

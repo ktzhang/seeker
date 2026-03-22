@@ -141,8 +141,9 @@ class ProPresenterToolHandler:
     Implements the ``ToolHandler`` protocol expected by ``GeminiSession``.
     """
 
-    def __init__(self, client: ProPresenterClient) -> None:
+    def __init__(self, client: ProPresenterClient, presentation_uuid: str = "") -> None:
         self.client = client
+        self.presentation_uuid = presentation_uuid
 
     async def handle(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         if name != "trigger_presentation_slide":
@@ -152,16 +153,13 @@ class ProPresenterToolHandler:
         slide_index = args.get("next_slide_index", -1)
         section_label = args.get("section_label", "")
         if section_label:
-            log.info("Triggering slide advance → index %d [%s]", slide_index, section_label)
+            log.info("Triggering slide → index %d [%s]", slide_index, section_label)
         else:
-            log.info("Triggering slide advance → index %d", slide_index)
+            log.info("Triggering slide → index %d", slide_index)
 
-        if self.client.config.use_sequential_trigger:
-            success = await self.client.trigger_next()
+        if self.presentation_uuid:
+            success = await self.client.trigger_index(self.presentation_uuid, slide_index)
         else:
-            pres = await self.client.get_active_presentation()
-            if pres is None:
-                return {"error": "No active presentation"}
-            success = await self.client.trigger_index(pres.uuid, slide_index)
+            success = await self.client.trigger_next()
 
         return {"ok": success}

@@ -224,7 +224,7 @@ class SeekerDaemon:
             )
             template = load_prompt_template(self.config.prompt.song_template)
             tool_decl = get_tool_declaration("song")
-            self.config.propresenter.use_sequential_trigger = False
+            presentation_uuid = pres.uuid if pres else ""
 
             # Extract arrangement from PDF if provided
             song_arrangement = ""
@@ -242,6 +242,7 @@ class SeekerDaemon:
         else:
             # Sermon mode: load manuscript from file
             song_arrangement = ""
+            presentation_uuid = ""
             if not manuscript_path:
                 raise ValueError("Manuscript path required for sermon mode")
             log.info("Activating with manuscript: %s", manuscript_path)
@@ -262,7 +263,7 @@ class SeekerDaemon:
 
         # Create subsystems
         self._audio_queue = asyncio.Queue(maxsize=self.config.audio.queue_max_size)
-        tool_handler = ProPresenterToolHandler(self._pp_client)
+        tool_handler = ProPresenterToolHandler(self._pp_client, presentation_uuid)
         self._gemini_session = GeminiSession(
             self.config.gemini, self._audio_queue, tool_handler
         )
